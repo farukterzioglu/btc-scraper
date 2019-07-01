@@ -1,0 +1,52 @@
+@hostname = https://127.0.0.1
+@port = 18556
+@host = {{hostname}}:{{port}}
+@wallethostname = https://127.0.0.1
+@walletport = 18554
+@wallethost = {{wallethostname}}:{{walletport}}
+@contentType = text/plain
+@user = myuser
+@passwd = SomeDecentp4ssw0rd
+
+"rest-client.certificates": {
+  "127.0.0.1:18556": {
+      "cert": "/rpc.cert"
+  }
+}
+
+### getinfo
+POST {{host}} HTTP/1.1
+content-type: {{contentType}}
+authorization: Basic {{user}} {{passwd}}
+
+{"jsonrpc": "1.0", "id":"1", "method": "getinfo", "params": [] }
+
+### getinfogetblockcount
+POST {{host}} HTTP/1.1
+content-type: {{contentType}}
+authorization: Basic {{user}} {{passwd}}
+
+{"jsonrpc": "1.0", "id":"1", "method": "getblockcount", "params": [] }
+
+### getblockhash
+POST {{host}} HTTP/1.1
+content-type: {{contentType}}
+authorization: Basic {{user}} {{passwd}}
+
+{"jsonrpc": "1.0", "id":"1", "method": "getblockhash", "params": [1] }
+
+### getblock
+POST {{host}} HTTP/1.1
+content-type: {{contentType}}
+authorization: Basic {{user}} {{passwd}}
+
+{"jsonrpc": "1.0", "id":"1", "method": "getblock", 
+  "params": ["42f4439e04162a826d99085168b2802bd08442936573a9d3db021da15b1daefd"] }
+
+### gettransaction
+POST {{wallethost}} HTTP/1.1
+content-type: {{contentType}}
+authorization: Basic {{user}} {{passwd}}
+
+{"jsonrpc": "1.0", "id":"1", "method": "gettransaction", 
+  "params": ["1d58489a44388d0aabf507f28bba07beb46eaeff6bed970a983d5f72f225dd6d"] }
