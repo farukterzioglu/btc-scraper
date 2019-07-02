@@ -1,11 +1,13 @@
 package api
 
 import (
+	"encoding/json"
 	_ "encoding/json"
-	_ "fmt"
+	"fmt"
 	_ "log"
 	"net/http"
 
+	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
 	_ "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
 	"github.com/gorilla/mux"
 )
@@ -24,17 +26,17 @@ func NewBtcRoutes() *BtcRoutes {
 func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 	ur := r.PathPrefix(p).Subrouter()
 
-	// swagger:route GET /block BtcAPI blockList
+	// swagger:route GET /btc/block BtcAPI blockList
 	// ---
 	// Returns all blocks.
 	//
 	// responses:
-	//   200: blockssResp
+	//   200: blocksResp
 	//   404: notFound
 	//	 500: internal
-	ur.HandleFunc("", routes.getBlocks).Methods("GET")
+	ur.HandleFunc("/block", routes.getBlocks).Methods("GET")
 
-	// swagger:route GET /block/{BlockID} BtcAPI getBlockReq
+	// swagger:route GET /btc/block/{BlockID} BtcAPI getBlockReq
 	// ---
 	// Returns a block by id.
 	// If the block id is null, Error Bad Request will be returned.
@@ -42,20 +44,32 @@ func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 	//   200: blockResp
 	//   404: notFound
 	//	 500: internal
-	ur.HandleFunc("/{BlockID}", controller.getBlock).Methods("GET")
+	ur.HandleFunc("/block/{BlockID}", routes.getBlock).Methods("GET")
 }
 
+// TODO : Implement this
 func (route *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	reviewIDStr := params["BlockID"]
+	blockIDStr := params["BlockID"]
+	fmt.Printf("Getting block %s...\n", blockIDStr)
 
-	// TODO : Implement this
-
-	w.WriteHeader(http.StatusOK)
+	block := dtos.BlockDto{ID: blockIDStr}
+	if err := json.NewEncoder(w).Encode(block); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+	}
 }
 
+// TODO : Implement this
 func (routes *BtcRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
-	// TODO : Implement this
+	fmt.Printf("Getting blocks...\n")
 
-	w.WriteHeader(http.StatusOK)
+	var blockList []dtos.BlockDto
+	blockList = append(blockList, dtos.BlockDto{ID: "1"})
+	blockList = append(blockList, dtos.BlockDto{ID: "2"})
+
+	if err := json.NewEncoder(w).Encode(blockList); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+	}
 }

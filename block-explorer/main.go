@@ -1,6 +1,6 @@
 // BlockExplorer API
 //
-// Web API for block explorer
+// Block explorer for multiple crypto currency
 //
 //     Schemes: http
 //     BasePath: /v1
@@ -56,7 +56,7 @@ func main() {
 	flag.Parse()
 	logger.Log("Application port", *portNumber)
 
-	router := initRouter(producer, rpcServer)
+	router := initRouter()
 
 	// Host Swagger UI
 	fs := http.FileServer(http.Dir("./swaggerui/"))

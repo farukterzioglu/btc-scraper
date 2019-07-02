@@ -10,8 +10,8 @@
   ],
   "swagger": "2.0",
   "info": {
-    "description": "Web API for review project",
-    "title": "Review API",
+    "description": "Block explorer for multiple crypto currency",
+    "title": "BlockExplorer API",
     "contact": {
       "name": "Faruk Terzioğlu",
       "email": "faruk.terzioglu@hotmail.com"
@@ -24,71 +24,16 @@
   },
   "basePath": "/v1",
   "paths": {
-    "/review": {
+    "/btc/block": {
       "get": {
         "tags": [
-          "QueryAPI"
+          "BtcAPI"
         ],
-        "summary": "Returns all reviews.",
-        "operationId": "reviewList",
+        "summary": "Returns all blocks.",
+        "operationId": "blockList",
         "responses": {
           "200": {
-            "$ref": "#/responses/reviewsResp"
-          },
-          "404": {
-            "$ref": "#/responses/notFound"
-          },
-          "500": {
-            "$ref": "#/responses/internal"
-          }
-        }
-      },
-      "put": {
-        "description": "Creates a 'create review commnand' and sends to Kafka",
-        "tags": [
-          "CommandAPI"
-        ],
-        "summary": "Creates a new review.",
-        "operationId": "createReviewReq",
-        "parameters": [
-          {
-            "name": "Body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/CreateReviewDto"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "$ref": "#/responses/ok"
-          },
-          "400": {
-            "$ref": "#/responses/badReq"
-          }
-        }
-      }
-    },
-    "/review/{ReviewID}": {
-      "get": {
-        "description": "If the review id is null, Error Bad Request will be returned.",
-        "tags": [
-          "QueryAPI"
-        ],
-        "summary": "Returns a review by id.",
-        "operationId": "getReviewReq",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "ReviewID",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/reviewResp"
+            "$ref": "#/responses/blocksResp"
           },
           "404": {
             "$ref": "#/responses/notFound"
@@ -99,36 +44,25 @@
         }
       }
     },
-    "/review/{ReviewID}/ratereview": {
-      "post": {
-        "description": "If the review id is null, Error Bad Request will be returned.",
+    "/btc/block/{BlockID}": {
+      "get": {
+        "description": "If the block id is null, Error Bad Request will be returned.",
         "tags": [
-          "CommandAPI"
+          "BtcAPI"
         ],
-        "summary": "Rates the review.",
-        "operationId": "rateReviewReq",
+        "summary": "Returns a block by id.",
+        "operationId": "getBlockReq",
         "parameters": [
           {
             "type": "string",
-            "name": "ReviewID",
+            "name": "BlockID",
             "in": "path",
             "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ReviewRatingDto"
-            }
           }
         ],
         "responses": {
-          "202": {
-            "$ref": "#/responses/rateReviewResp"
-          },
-          "400": {
-            "$ref": "#/responses/badReq"
+          "200": {
+            "$ref": "#/responses/blockResp"
           },
           "404": {
             "$ref": "#/responses/notFound"
@@ -141,69 +75,16 @@
     }
   },
   "definitions": {
-    "CreateReviewDto": {
-      "description": "CreateReviewDto is a DTO for api requests",
-      "type": "object",
-      "properties": {
-        "productid": {
-          "type": "string",
-          "x-go-name": "ProductID"
-        },
-        "star": {
-          "type": "integer",
-          "format": "int8",
-          "x-go-name": "Star"
-        },
-        "text": {
-          "type": "string",
-          "x-go-name": "Text"
-        },
-        "userid": {
-          "type": "string",
-          "x-go-name": "UserID"
-        }
-      },
-      "x-go-package": "github.com/farukterzioglu/micGo-services/Review.API/dtos"
-    },
-    "ReviewDto": {
-      "description": "ReviewDto is a DTO for api requests",
+    "BlockDto": {
+      "description": "BlockDto is a DTO for api requests",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "x-go-name": "ID"
-        },
-        "productid": {
-          "type": "string",
-          "x-go-name": "ProductID"
-        },
-        "star": {
-          "type": "integer",
-          "format": "int8",
-          "x-go-name": "Star"
-        },
-        "text": {
-          "type": "string",
-          "x-go-name": "Text"
-        },
-        "userid": {
-          "type": "string",
-          "x-go-name": "UserID"
         }
       },
-      "x-go-package": "github.com/farukterzioglu/micGo-services/Review.API/dtos"
-    },
-    "ReviewRatingDto": {
-      "description": "ReviewRatingDto is review rating data",
-      "type": "object",
-      "properties": {
-        "star": {
-          "type": "integer",
-          "format": "int8",
-          "x-go-name": "Star"
-        }
-      },
-      "x-go-package": "github.com/farukterzioglu/micGo-services/Review.API/dtos"
+      "x-go-package": "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
     }
   },
   "responses": {
@@ -223,6 +104,21 @@
             "type": "string",
             "x-go-name": "Message"
           }
+        }
+      }
+    },
+    "blockResp": {
+      "description": "HTTP status code 200 and a block model in data",
+      "schema": {
+        "$ref": "#/definitions/BlockDto"
+      }
+    },
+    "blocksResp": {
+      "description": "HTTP status code 200 and an array of block models in data",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/BlockDto"
         }
       }
     },
@@ -332,35 +228,6 @@
             "format": "int64",
             "x-go-name": "Code"
           }
-        }
-      }
-    },
-    "rateReviewResp": {
-      "description": "HTTP status code 200",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "HTTP status code 200 - Status OK",
-            "type": "integer",
-            "format": "int64",
-            "x-go-name": "Code"
-          }
-        }
-      }
-    },
-    "reviewResp": {
-      "description": "HTTP status code 200 and a review model in data",
-      "schema": {
-        "$ref": "#/definitions/ReviewDto"
-      }
-    },
-    "reviewsResp": {
-      "description": "HTTP status code 200 and an array of review models in data",
-      "schema": {
-        "type": "array",
-        "items": {
-          "$ref": "#/definitions/ReviewDto"
         }
       }
     }
