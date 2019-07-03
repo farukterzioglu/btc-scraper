@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	_ "encoding/json"
 	"fmt"
+	"log"
 	_ "log"
 	"net/http"
 
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
 	_ "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
 	"github.com/gorilla/mux"
@@ -14,12 +16,14 @@ import (
 
 // BtcRoutes contains btc endpoints
 type BtcRoutes struct {
-	// TODO: rpc client
+	client *rpcclient.Client
 }
 
 // NewBtcRoutes create a new BtcRoutes instance
-func NewBtcRoutes() *BtcRoutes {
-	return &BtcRoutes{}
+func NewBtcRoutes(client *rpcclient.Client) *BtcRoutes {
+	return &BtcRoutes{
+		client: client,
+	}
 }
 
 // RegisterBtcRoutes registers routes for Btc
@@ -48,12 +52,15 @@ func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 }
 
 // TODO : Implement this
-func (route *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
+func (routes *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	blockIDStr := params["BlockID"]
 	fmt.Printf("Getting block %s...\n", blockIDStr)
 
-	block := dtos.BlockDto{ID: blockIDStr}
+	block := dtos.BlockDto{
+		Hash:   blockIDStr,
+		Height: 0,
+	}
 	if err := json.NewEncoder(w).Encode(block); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -64,9 +71,35 @@ func (route *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 func (routes *BtcRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Getting blocks...\n")
 
-	var blockList []dtos.BlockDto
-	blockList = append(blockList, dtos.BlockDto{ID: "1"})
-	blockList = append(blockList, dtos.BlockDto{ID: "2"})
+	// Get the current block count.
+	blockCount, err := routes.client.GetBlockCount()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	log.Printf("Block count: %d", blockCount)
+
+	if blockCount > 10 {
+		blockCount = 10
+	}
+
+	blockList := make([]dtos.BlockDto, blockCount, 10)
+
+	for i := blockCount; i > 0; i-- {
+		blockHash, err := routes.client.GetBlockHash(i)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		log.Printf("Block %d, hash: %s", i, blockHash)
+
+		blockList = append(blockList, dtos.BlockDto{
+			Hash:   blockHash,
+			Height: i,
+		})
+	}
 
 	if err := json.NewEncoder(w).Encode(blockList); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -30,10 +30,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
+	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/btcsuite/btcutil"
 	"github.com/farukterzioglu/btc-scraper/block-explorer/api"
 	_ "github.com/farukterzioglu/btc-scraper/block-explorer/swagger" // Required for Swagger to explore models
 	kitlog "github.com/go-kit/kit/log"
@@ -56,7 +60,8 @@ func main() {
 	flag.Parse()
 	logger.Log("Application port", *portNumber)
 
-	router := initRouter()
+	rpcCLient := initRpcClient()
+	router := initRouter(rpcCLient)
 
 	// Host Swagger UI
 	fs := http.FileServer(http.Dir("./swaggerui/"))
@@ -66,14 +71,35 @@ func main() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *portNumber), router))
 }
 
-func initRouter() (router *mux.Router) {
+func initRpcClient() *rpcclient.Client {
+	btcdHomeDir := btcutil.AppDataDir("btcd", false)
+	certs, err := ioutil.ReadFile(filepath.Join(btcdHomeDir, "rpc.cert"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	connCfg := &rpcclient.ConnConfig{
+		Host:         "localhost:18556",
+		Endpoint:     "ws",
+		User:         "myuser",
+		Pass:         "SomeDecentp4ssw0rd",
+		Certificates: certs,
+	}
+	client, err := rpcclient.New(connCfg, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client
+}
+
+func initRouter(client *rpcclient.Client) (router *mux.Router) {
 	router = mux.NewRouter()
 	// TODO : Causes Swagger UI to be parsed as JSON instead of html
 	// router.Use(commonMiddleware)
 
 	v1 := router.PathPrefix("/v1").Subrouter()
 
-	btcRoutes := api.NewBtcRoutes()
+	btcRoutes := api.NewBtcRoutes(client)
 	btcRoutes.RegisterBtcRoutes(v1, "/btc")
 
 	return
