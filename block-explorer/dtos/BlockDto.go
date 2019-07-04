@@ -2,6 +2,11 @@ package dtos
 
 // BlockDto is a DTO for api requests
 type BlockDto struct {
-	Hash   string `json:"hash"`
-	Height int64  `json:"height"`
+	Hash          string        `json:"hash"`
+	Confirmations int64         `json:"confirmations"`
+	Height        int64         `json:"height"`
+	Tx            []string      `json:"tx,omitempty"`
+	Time          int64         `json:"time"`
+	PreviousHash  string        `json:"previousblockhash"`
+	NextHash      string        `json:"nextblockhash,omitempty"`
 }

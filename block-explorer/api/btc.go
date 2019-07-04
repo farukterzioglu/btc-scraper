@@ -10,6 +10,7 @@ import (
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	_ "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
 	"github.com/gorilla/mux"
 )
@@ -32,7 +33,7 @@ func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 
 	// swagger:route GET /btc/block BtcAPI blockList
 	// ---
-	// Returns all blocks.
+	// Returns last 10 blocks.
 	//
 	// responses:
 	//   200: blocksResp
@@ -55,30 +56,47 @@ func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 func (routes *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	blockIDStr := params["BlockID"]
-	fmt.Printf("Getting block %s...\n", blockIDStr)
 
-	block := dtos.BlockDto{
-		Hash:   blockIDStr,
-		Height: 0,
+	hash, err := chainhash.NewHashFromStr(blockIDStr)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
 	}
-	if err := json.NewEncoder(w).Encode(block); err != nil {
+
+	block, err := routes.client.GetBlockVerbose(hash)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	fmt.Printf("%+v\n", block) 
+
+	blockDto := dtos.BlockDto{
+		Hash:   block.Hash,
+		Height: block.Height,
+		Time: block.Time,
+		Confirmations: block.Confirmations,
+		Tx: block.Tx,
+		NextHash: block.NextHash,
+		PreviousHash: block.PreviousHash,
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(blockDto); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 	}
 }
 
-// TODO : Implement this
 func (routes *BtcRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("Getting blocks...\n")
-
-	// Get the current block count.
 	blockCount, err := routes.client.GetBlockCount()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
 	}
-	log.Printf("Block count: %d", blockCount)
 
 	if blockCount > 10 {
 		blockCount = 10
@@ -95,12 +113,13 @@ func (routes *BtcRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("Block %d, hash: %s", i, blockHash)
 
-		blockList = append(blockList, dtos.BlockDto{
-			Hash:   blockHash,
+		blockList[blockCount-i] = dtos.BlockDto{
+			Hash:   blockHash.String(),
 			Height: i,
-		})
+		}
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(blockList); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
