@@ -25,7 +25,25 @@ type swaggBlocksResp struct {
 // HTTP status code 200 and a block model in data
 // swagger:response blockResp
 type swaggBlockResp struct {
-	// A block models
+	// A block model
 	// in:body
 	Body dtos.BlockDto
+}
+
+// Request containing transaction hash
+// swagger:parameters getTransactionReq
+type swaggGetTxReq struct {
+	// in:path
+	// description: hash of the tx
+	// type: string
+	// required: true
+	TxHash string
+}
+
+// HTTP status code 200 and a transaction model in data
+// swagger:response transactionResp
+type swaggTransactionResp struct {
+	// A transaction model
+	// in:body
+	Body dtos.TransactionDto
 }

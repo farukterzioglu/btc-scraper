@@ -29,7 +29,7 @@
         "tags": [
           "BtcAPI"
         ],
-        "summary": "Returns all blocks.",
+        "summary": "Returns last 10 blocks.",
         "operationId": "blockList",
         "responses": {
           "200": {
@@ -72,6 +72,35 @@
           }
         }
       }
+    },
+    "/btc/tx/{TxHash}": {
+      "get": {
+        "description": "If the transaction hash is null, Error Bad Request will be returned.",
+        "tags": [
+          "BtcAPI"
+        ],
+        "summary": "Returns a transaction by hash.",
+        "operationId": "getTransactionReq",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "TxHash",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/transactionResp"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          },
+          "500": {
+            "$ref": "#/responses/internal"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -79,9 +108,148 @@
       "description": "BlockDto is a DTO for api requests",
       "type": "object",
       "properties": {
-        "id": {
+        "confirmations": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Confirmations"
+        },
+        "hash": {
           "type": "string",
-          "x-go-name": "ID"
+          "x-go-name": "Hash"
+        },
+        "height": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Height"
+        },
+        "nextblockhash": {
+          "type": "string",
+          "x-go-name": "NextHash"
+        },
+        "previousblockhash": {
+          "type": "string",
+          "x-go-name": "PreviousHash"
+        },
+        "time": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Time"
+        },
+        "tx": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Tx"
+        }
+      },
+      "x-go-package": "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
+    },
+    "TransactionDto": {
+      "type": "object",
+      "properties": {
+        "blockhash": {
+          "type": "string",
+          "x-go-name": "BlockHash"
+        },
+        "blocktime": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Blocktime"
+        },
+        "confirmations": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "Confirmations"
+        },
+        "hash": {
+          "type": "string",
+          "x-go-name": "Hash"
+        },
+        "locktime": {
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "LockTime"
+        },
+        "time": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Time"
+        },
+        "txid": {
+          "type": "string",
+          "x-go-name": "Txid"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Version"
+        },
+        "vin": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Vin"
+          },
+          "x-go-name": "Vin"
+        },
+        "vout": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Vout"
+          },
+          "x-go-name": "Vout"
+        },
+        "vsize": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Vsize"
+        }
+      },
+      "x-go-package": "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
+    },
+    "Vin": {
+      "type": "object",
+      "properties": {
+        "coinbase": {
+          "type": "string",
+          "x-go-name": "Coinbase"
+        },
+        "sequence": {
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "Sequence"
+        },
+        "txid": {
+          "type": "string",
+          "x-go-name": "Txid"
+        },
+        "txinwitness": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Witness"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "Vout"
+        }
+      },
+      "x-go-package": "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
+    },
+    "Vout": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "integer",
+          "format": "uint32",
+          "x-go-name": "N"
+        },
+        "value": {
+          "type": "number",
+          "format": "double",
+          "x-go-name": "Value"
         }
       },
       "x-go-package": "github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
@@ -229,6 +397,12 @@
             "x-go-name": "Code"
           }
         }
+      }
+    },
+    "transactionResp": {
+      "description": "HTTP status code 200 and a transaction model in data",
+      "schema": {
+        "$ref": "#/definitions/TransactionDto"
       }
     }
   },
