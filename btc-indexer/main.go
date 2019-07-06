@@ -16,33 +16,69 @@ import (
 )
 
 func main() {
-	ntfnHandlers := rpcclient.NotificationHandlers{
-		OnFilteredBlockConnected: func(blockHeight int32, header *wire.BlockHeader, txList []*btcutil.Tx) {
-			log.Printf("Block connected: %s, height: %d, tx count: %d", header.BlockHash().String(), blockHeight, len(txList))
+	type BlockNotification struct {
+		BlockHeight int32
+		Header      *wire.BlockHeader
+		TxList      []*btcutil.Tx
+	}
 
-			for _, tx := range txList {
+	blockChannel := make(chan BlockNotification)
+	go func(chn chan BlockNotification) {
+		for {
+			block := <-chn
+
+			log.Printf("Block connected: %s, height: %d, tx count: %d", block.Header.BlockHash().String(), block.BlockHeight, len(block.TxList))
+
+			for _, tx := range block.TxList {
 				log.Printf("   Transaction: %s", tx.Hash().String())
 			}
-		},
-		OnFilteredBlockDisconnected: func(int32, *wire.BlockHeader) {},
-		OnRecvTx: func(tx *btcutil.Tx, block *btcjson.BlockDetails) {
-			log.Printf("Transaction received : %v", tx.Hash, block.Height)
-		},
-		OnRedeemingTx: func(tx *btcutil.Tx, block *btcjson.BlockDetails) {
-			log.Printf("Transaction redeemed : %v", tx.Hash, block.Height)
-		},
-		OnRelevantTxAccepted: func(tx []byte) {
-			log.Printf("Relevant tx accepted")
-			log.Printf("   %s", hex.EncodeToString(tx))
-		},
-		OnTxAccepted: func(hash *chainhash.Hash, amount btcutil.Amount) {
-			log.Printf("Tx accepted: %s", hash.String())
-		},
-		OnTxAcceptedVerbose: func(tx *btcjson.TxRawResult) {
+		}
+	}(blockChannel)
+
+	type TxNotification struct {
+		Tx *btcjson.TxRawResult
+	}
+
+	txChannel := make(chan TxNotification)
+	go func(chn chan TxNotification) {
+		for {
+			txNtf := <-chn
+			tx := txNtf.Tx
+
 			log.Printf("Tx accepted (verbose): %s (Conf.: %d)", tx.Hash, tx.Confirmations)
 
 			for _, vout := range tx.Vout {
 				log.Printf("   Output amount: %f", vout.Value)
+			}
+		}
+	}(txChannel)
+
+	txHexChannel := make(chan string)
+	go func(chn chan string) {
+		for {
+			hex := <-chn
+
+			log.Printf("Relevant tx accepted")
+			log.Printf("   %s", hex)
+		}
+	}(txHexChannel)
+
+	ntfnHandlers := rpcclient.NotificationHandlers{
+		OnFilteredBlockConnected: func(blockHeight int32, header *wire.BlockHeader, txList []*btcutil.Tx) {
+			blockChannel <- BlockNotification{
+				BlockHeight: blockHeight,
+				Header:      header,
+				TxList:      txList,
+			}
+		},
+		OnFilteredBlockDisconnected: func(int32, *wire.BlockHeader) {},
+		OnRelevantTxAccepted: func(tx []byte) {
+			txHexChannel <- hex.EncodeToString(tx)
+		},
+		OnTxAccepted: func(hash *chainhash.Hash, amount btcutil.Amount) {},
+		OnTxAcceptedVerbose: func(tx *btcjson.TxRawResult) {
+			txChannel <- TxNotification{
+				Tx: tx,
 			}
 		},
 	}
