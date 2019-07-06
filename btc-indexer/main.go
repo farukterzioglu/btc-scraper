@@ -16,70 +16,48 @@ import (
 )
 
 func main() {
-	type BlockNotification struct {
-		BlockHeight int32
-		Header      *wire.BlockHeader
-		TxList      []*btcutil.Tx
-	}
-
 	blockChannel := make(chan BlockNotification)
-	go func(chn chan BlockNotification) {
-		for {
-			block := <-chn
-
-			log.Printf("Block connected: %s, height: %d, tx count: %d", block.Header.BlockHash().String(), block.BlockHeight, len(block.TxList))
-
-			for _, tx := range block.TxList {
-				log.Printf("   Transaction: %s", tx.Hash().String())
-			}
-		}
-	}(blockChannel)
-
-	type TxNotification struct {
-		Tx *btcjson.TxRawResult
-	}
-
 	txChannel := make(chan TxNotification)
-	go func(chn chan TxNotification) {
-		for {
-			txNtf := <-chn
-			tx := txNtf.Tx
-
-			log.Printf("Tx accepted (verbose): %s (Conf.: %d)", tx.Hash, tx.Confirmations)
-
-			for _, vout := range tx.Vout {
-				log.Printf("   Output amount: %f", vout.Value)
-			}
-		}
-	}(txChannel)
-
 	txHexChannel := make(chan string)
-	go func(chn chan string) {
-		for {
-			hex := <-chn
 
-			log.Printf("Relevant tx accepted")
-			log.Printf("   %s", hex)
-		}
-	}(txHexChannel)
+	handler := NewNotificationHandler()
+	go handler.ConsumeBlocks(blockChannel)
+	go handler.ConsumeTx(txChannel)
+	go handler.ConsumeRelevantTxHex(txHexChannel)
 
 	ntfnHandlers := rpcclient.NotificationHandlers{
 		OnFilteredBlockConnected: func(blockHeight int32, header *wire.BlockHeader, txList []*btcutil.Tx) {
-			blockChannel <- BlockNotification{
+			notification := BlockNotification{
 				BlockHeight: blockHeight,
 				Header:      header,
 				TxList:      txList,
 			}
+
+			select {
+			case blockChannel <- notification:
+				break
+			default:
+				log.Println("couldn't sent the block. no consumer.")
+			}
 		},
 		OnFilteredBlockDisconnected: func(int32, *wire.BlockHeader) {},
 		OnRelevantTxAccepted: func(tx []byte) {
-			txHexChannel <- hex.EncodeToString(tx)
+			select {
+			case txHexChannel <- hex.EncodeToString(tx):
+				break
+			default:
+				log.Println("couldn't sent the transaction hex. no consumer.")
+			}
 		},
 		OnTxAccepted: func(hash *chainhash.Hash, amount btcutil.Amount) {},
 		OnTxAcceptedVerbose: func(tx *btcjson.TxRawResult) {
-			txChannel <- TxNotification{
-				Tx: tx,
+			select {
+			case txChannel <- TxNotification{Tx: tx}:
+				break
+			default:
+				log.Println("couldn't send the transaction. no consumer.")
 			}
+
 		},
 	}
 
