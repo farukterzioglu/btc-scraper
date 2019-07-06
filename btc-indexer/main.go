@@ -1,14 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"path/filepath"
 
-	"github.com/btcsuite/btcd/chaincfg"
+	"encoding/hex"
 
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
@@ -17,15 +18,13 @@ import (
 func main() {
 	ntfnHandlers := rpcclient.NotificationHandlers{
 		OnFilteredBlockConnected: func(blockHeight int32, header *wire.BlockHeader, txList []*btcutil.Tx) {
-			log.Printf("Block connected: %v (%d)", header.BlockHash(), blockHeight)
-			log.Printf("Transaction count: %d", len(txList))
+			log.Printf("Block connected: %s, height: %d, tx count: %d", header.BlockHash().String(), blockHeight, len(txList))
 
 			for _, tx := range txList {
-				log.Printf("Transaction: %s", tx.Hash().String())
+				log.Printf("   Transaction: %s", tx.Hash().String())
 			}
 		},
-		OnFilteredBlockDisconnected: func(int32, *wire.BlockHeader) {
-		},
+		OnFilteredBlockDisconnected: func(int32, *wire.BlockHeader) {},
 		OnRecvTx: func(tx *btcutil.Tx, block *btcjson.BlockDetails) {
 			log.Printf("Transaction received : %v", tx.Hash, block.Height)
 		},
@@ -33,7 +32,18 @@ func main() {
 			log.Printf("Transaction redeemed : %v", tx.Hash, block.Height)
 		},
 		OnRelevantTxAccepted: func(tx []byte) {
+			log.Printf("Relevant tx accepted")
+			log.Printf("   %s", hex.EncodeToString(tx))
+		},
+		OnTxAccepted: func(hash *chainhash.Hash, amount btcutil.Amount) {
+			log.Printf("Tx accepted: %s", hash.String())
+		},
+		OnTxAcceptedVerbose: func(tx *btcjson.TxRawResult) {
+			log.Printf("Tx accepted (verbose): %s (Conf.: %d)", tx.Hash, tx.Confirmations)
 
+			for _, vout := range tx.Vout {
+				log.Printf("   Output amount: %f", vout.Value)
+			}
 		},
 	}
 
@@ -54,18 +64,21 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := client.NotifyBlocks(); err != nil {
+	address1, err := btcutil.DecodeAddress("SRMzZD8Ar1ipDjgkxspmiG3uDhdESPjVvL", &chaincfg.SimNetParams)
+	address2, err := btcutil.DecodeAddress("Sa5SQHMZ9on5ZjG13AceP4dzFmycTTzkmq", &chaincfg.SimNetParams)
+	if err != nil {
 		client.Shutdown()
 		log.Fatal(err)
 	}
 
-	address, err := btcutil.DecodeAddress("SRMzZD8Ar1ipDjgkxspmiG3uDhdESPjVvL", &chaincfg.SimNetParams)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	err = client.NotifyBlocks()
+	err = client.NotifyNewTransactions(true)
+	err = client.LoadTxFilter(true, []btcutil.Address{address1, address2}, nil)
 
-	client.LoadTxFilter(true, []btcutil.Address{address}, nil)
+	if err != nil {
+		client.Shutdown()
+		log.Fatal(err)
+	}
 
 	// time.AfterFunc(time.Second*10, func() {
 	// 	log.Println("Client shutting down...")
