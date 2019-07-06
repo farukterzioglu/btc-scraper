@@ -20,11 +20,6 @@ func main() {
 	txChannel := make(chan TxNotification)
 	txHexChannel := make(chan string)
 
-	handler := NewNotificationHandler()
-	go handler.ConsumeBlocks(blockChannel)
-	go handler.ConsumeTx(txChannel)
-	go handler.ConsumeRelevantTxHex(txHexChannel)
-
 	ntfnHandlers := rpcclient.NotificationHandlers{
 		OnFilteredBlockConnected: func(blockHeight int32, header *wire.BlockHeader, txList []*btcutil.Tx) {
 			notification := BlockNotification{
@@ -93,6 +88,11 @@ func main() {
 		client.Shutdown()
 		log.Fatal(err)
 	}
+
+	handler := NewNotificationHandler(client)
+	go handler.ConsumeBlocks(blockChannel)
+	go handler.ConsumeTx(txChannel)
+	go handler.ConsumeRelevantTxHex(txHexChannel)
 
 	// time.AfterFunc(time.Second*10, func() {
 	// 	log.Println("Client shutting down...")
