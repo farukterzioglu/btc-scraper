@@ -38,8 +38,10 @@ import (
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
+	"github.com/elastic/go-elasticsearch"
 	"github.com/farukterzioglu/btc-scraper/block-explorer/api"
 	_ "github.com/farukterzioglu/btc-scraper/block-explorer/swagger" // Required for Swagger to explore models
+	"github.com/farukterzioglu/btc-scraper/services"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 )
@@ -61,7 +63,8 @@ func main() {
 	logger.Log("Application port", *portNumber)
 
 	rpcCLient := initRpcClient()
-	router := initRouter(rpcCLient)
+	elasticService := initElasticService()
+	router := initRouter(rpcCLient, elasticService)
 
 	// Host Swagger UI
 	fs := http.FileServer(http.Dir("./swaggerui/"))
@@ -92,15 +95,33 @@ func initRpcClient() *rpcclient.Client {
 	return client
 }
 
-func initRouter(client *rpcclient.Client) (router *mux.Router) {
+func initElasticService() *services.ElasticService {
+	// TODO : get url from params
+	// TODO : better exception handling
+
+	cfg := elasticsearch.Config{
+		Addresses: []string{
+			"http://localhost:9200",
+		},
+	}
+	es, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+
+	return services.NewElasticService(es)
+}
+
+func initRouter(client *rpcclient.Client, elasticService *services.ElasticService) (router *mux.Router) {
 	router = mux.NewRouter()
-	// TODO : Causes Swagger UI to be parsed as JSON instead of html
-	// router.Use(commonMiddleware)
 
 	v1 := router.PathPrefix("/v1").Subrouter()
 
 	btcRoutes := api.NewBtcRoutes(client)
 	btcRoutes.RegisterBtcRoutes(v1, "/btc-rpc")
+
+	btcDbRoutes := api.NewBtcDbRoutes(elasticService)
+	btcDbRoutes.RegisterRoutes(v1, "/btc")
 
 	return
 }

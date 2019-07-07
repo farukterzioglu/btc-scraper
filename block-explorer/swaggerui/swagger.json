@@ -27,13 +27,13 @@
     "/btc-rpc/block": {
       "get": {
         "tags": [
-          "BtcAPI"
+          "BtcRpc"
         ],
         "summary": "Returns last 10 blocks.",
-        "operationId": "blockList",
+        "operationId": "getBlocksRpcReq",
         "responses": {
           "200": {
-            "$ref": "#/responses/blocksResp"
+            "$ref": "#/responses/blocksRpcResp"
           },
           "404": {
             "$ref": "#/responses/notFound"
@@ -48,7 +48,85 @@
       "get": {
         "description": "If the block id is null, Error Bad Request will be returned.",
         "tags": [
-          "BtcAPI"
+          "BtcRpc"
+        ],
+        "summary": "Returns a block by id.",
+        "operationId": "getBlockRpcReq",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "BlockID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/blockRpcResp"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          },
+          "500": {
+            "$ref": "#/responses/internal"
+          }
+        }
+      }
+    },
+    "/btc-rpc/tx/{TxHash}": {
+      "get": {
+        "description": "If the transaction hash is null, Error Bad Request will be returned.",
+        "tags": [
+          "BtcRpc"
+        ],
+        "summary": "Returns a transaction by hash.",
+        "operationId": "getTransactionRpcReq",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "TxHash",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/transactionRpcResp"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          },
+          "500": {
+            "$ref": "#/responses/internal"
+          }
+        }
+      }
+    },
+    "/btc/block": {
+      "get": {
+        "tags": [
+          "Btc"
+        ],
+        "summary": "Returns last 10 blocks.",
+        "operationId": "getBlocksReq",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/blocksResp"
+          },
+          "404": {
+            "$ref": "#/responses/notFound"
+          },
+          "500": {
+            "$ref": "#/responses/internal"
+          }
+        }
+      }
+    },
+    "/btc/block/{BlockID}": {
+      "get": {
+        "description": "If the block id is null, Error Bad Request will be returned.",
+        "tags": [
+          "Btc"
         ],
         "summary": "Returns a block by id.",
         "operationId": "getBlockReq",
@@ -73,11 +151,11 @@
         }
       }
     },
-    "/btc-rpc/tx/{TxHash}": {
+    "/btc/tx/{TxHash}": {
       "get": {
         "description": "If the transaction hash is null, Error Bad Request will be returned.",
         "tags": [
-          "BtcAPI"
+          "Btc"
         ],
         "summary": "Returns a transaction by hash.",
         "operationId": "getTransactionReq",
@@ -281,7 +359,22 @@
         "$ref": "#/definitions/BlockDto"
       }
     },
+    "blockRpcResp": {
+      "description": "HTTP status code 200 and a block model in data",
+      "schema": {
+        "$ref": "#/definitions/BlockDto"
+      }
+    },
     "blocksResp": {
+      "description": "HTTP status code 200 and an array of block models in data",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/BlockDto"
+        }
+      }
+    },
+    "blocksRpcResp": {
       "description": "HTTP status code 200 and an array of block models in data",
       "schema": {
         "type": "array",
@@ -400,6 +493,12 @@
       }
     },
     "transactionResp": {
+      "description": "HTTP status code 200 and a transaction model in data",
+      "schema": {
+        "$ref": "#/definitions/TransactionDto"
+      }
+    },
+    "transactionRpcResp": {
       "description": "HTTP status code 200 and a transaction model in data",
       "schema": {
         "$ref": "#/definitions/TransactionDto"
