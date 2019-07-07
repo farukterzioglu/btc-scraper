@@ -100,7 +100,7 @@ func initRouter(client *rpcclient.Client) (router *mux.Router) {
 	v1 := router.PathPrefix("/v1").Subrouter()
 
 	btcRoutes := api.NewBtcRoutes(client)
-	btcRoutes.RegisterBtcRoutes(v1, "/btc")
+	btcRoutes.RegisterBtcRoutes(v1, "/btc-rpc")
 
 	return
 }

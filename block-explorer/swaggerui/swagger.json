@@ -24,7 +24,7 @@
   },
   "basePath": "/v1",
   "paths": {
-    "/btc/block": {
+    "/btc-rpc/block": {
       "get": {
         "tags": [
           "BtcAPI"
@@ -44,7 +44,7 @@
         }
       }
     },
-    "/btc/block/{BlockID}": {
+    "/btc-rpc/block/{BlockID}": {
       "get": {
         "description": "If the block id is null, Error Bad Request will be returned.",
         "tags": [
@@ -73,7 +73,7 @@
         }
       }
     },
-    "/btc/tx/{TxHash}": {
+    "/btc-rpc/tx/{TxHash}": {
       "get": {
         "description": "If the transaction hash is null, Error Bad Request will be returned.",
         "tags": [

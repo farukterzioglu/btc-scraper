@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gorilla/mux"
 )
 
@@ -26,7 +26,7 @@ func NewBtcRoutes(client *rpcclient.Client) *BtcRoutes {
 func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 	ur := r.PathPrefix(p).Subrouter()
 
-	// swagger:route GET /btc/block BtcAPI blockList
+	// swagger:route GET /btc-rpc/block BtcRpcAPI blockList
 	// ---
 	// Returns last 10 blocks.
 	//
@@ -36,7 +36,7 @@ func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 	//	 500: internal
 	ur.HandleFunc("/block", routes.getBlocks).Methods("GET")
 
-	// swagger:route GET /btc/block/{BlockID} BtcAPI getBlockReq
+	// swagger:route GET /btc-rpc/block/{BlockID} BtcRpcAPI getBlockReq
 	// ---
 	// Returns a block by id.
 	// If the block id is null, Error Bad Request will be returned.
@@ -46,7 +46,7 @@ func (routes *BtcRoutes) RegisterBtcRoutes(r *mux.Router, p string) {
 	//	 500: internal
 	ur.HandleFunc("/block/{BlockID}", routes.getBlock).Methods("GET")
 
-	// swagger:route GET /btc/tx/{TxHash} BtcAPI getTransactionReq
+	// swagger:route GET /btc-rpc/tx/{TxHash} BtcRpcAPI getTransactionReq
 	// ---
 	// Returns a transaction by hash.
 	// If the transaction hash is null, Error Bad Request will be returned.
@@ -76,13 +76,13 @@ func (routes *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	blockDto := dtos.BlockDto{
-		Hash:   block.Hash,
-		Height: block.Height,
-		Time: block.Time,
+		Hash:          block.Hash,
+		Height:        block.Height,
+		Time:          block.Time,
 		Confirmations: block.Confirmations,
-		Tx: block.Tx,
-		NextHash: block.NextHash,
-		PreviousHash: block.PreviousHash,
+		Tx:            block.Tx,
+		NextHash:      block.NextHash,
+		PreviousHash:  block.PreviousHash,
 	}
 
 	w.Header().Add("Content-Type", "application/json")
