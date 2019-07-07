@@ -1,21 +1,28 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"log"
+	"strings"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/elastic/go-elasticsearch"
+	"github.com/elastic/go-elasticsearch/esapi"
 	"github.com/farukterzioglu/btc-scraper/models"
 )
 
 type NotificationHandler struct {
-	client *rpcclient.Client
+	client  *rpcclient.Client
+	elastic *elasticsearch.Client
 }
 
-func NewNotificationHandler(c *rpcclient.Client) *NotificationHandler {
+func NewNotificationHandler(c *rpcclient.Client, e *elasticsearch.Client) *NotificationHandler {
 	return &NotificationHandler{
-		client: c,
+		client:  c,
+		elastic: e,
 	}
 }
 
@@ -50,8 +57,30 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			PreviousHash:  block.PreviousHash,
 			NextHash:      block.NextHash,
 		}
-		// TODO : Write to db
-		log.Printf("Block details: %+v", blockDto)
+
+		data, _ := json.Marshal(blockDto)
+		req := esapi.IndexRequest{
+			Index:      "block",
+			DocumentID: blockDto.Hash,
+			Body:       strings.NewReader(string(data)),
+			Refresh:    "true",
+		}
+		res, err := req.Do(context.Background(), handler.elastic)
+		if err != nil {
+			log.Fatalf("Error getting response: %s", err)
+		}
+		defer res.Body.Close()
+
+		if res.IsError() {
+			log.Printf("[%s] Error indexing document ID=%d", res.Status(), blockDto.Hash)
+		} else {
+			var r map[string]interface{}
+			if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+				log.Printf("Error parsing the response body: %s", err)
+			} else {
+				log.Printf("[%s] block %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
+			}
+		}
 
 		// Map tx to dto
 		var transactionList []models.TransactionDto
@@ -98,8 +127,32 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			return txDto
 		}).ToSlice(&transactionList)
 
-		// TODO : Save tx list to db
-		log.Printf("%+v", transactionList)
+		// TODO : Insert bulk
+		for _, transaction := range transactionList {
+			data, _ := json.Marshal(transaction)
+			req := esapi.IndexRequest{
+				Index:      "transaction",
+				DocumentID: transaction.Hash,
+				Body:       strings.NewReader(string(data)),
+				Refresh:    "true",
+			}
+			res, err := req.Do(context.Background(), handler.elastic)
+			if err != nil {
+				log.Fatalf("Error getting response: %s", err)
+			}
+			defer res.Body.Close()
+
+			if res.IsError() {
+				log.Printf("[%s] Error indexing document ID=%d", res.Status(), transaction.Hash)
+			} else {
+				var r map[string]interface{}
+				if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+					log.Printf("Error parsing the response body: %s", err)
+				} else {
+					log.Printf("[%s] transaction %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
+				}
+			}
+		}
 	}
 
 	return handler

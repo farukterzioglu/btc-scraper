@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/elastic/go-elasticsearch"
 )
 
 func main() {
@@ -89,7 +90,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	handler := NewNotificationHandler(client)
+	// Elastic client
+	cfg := elasticsearch.Config{
+		Addresses: []string{
+			"http://localhost:9200",
+		},
+	}
+	es, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+
+	// Notification handler
+	handler := NewNotificationHandler(client, es)
 	go handler.ConsumeBlocks(blockChannel)
 	go handler.ConsumeTx(txChannel)
 	go handler.ConsumeRelevantTxHex(txHexChannel)
