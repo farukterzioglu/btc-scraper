@@ -2,24 +2,21 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
-	"strings"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/elastic/go-elasticsearch"
-	"github.com/elastic/go-elasticsearch/esapi"
 	"github.com/farukterzioglu/btc-scraper/models"
+	"github.com/olivere/elastic/v7"
 )
 
 type NotificationHandler struct {
 	client  *rpcclient.Client
-	elastic *elasticsearch.Client
+	elastic *elastic.Client
 }
 
-func NewNotificationHandler(c *rpcclient.Client, e *elasticsearch.Client) *NotificationHandler {
+func NewNotificationHandler(c *rpcclient.Client, e *elastic.Client) *NotificationHandler {
 	return &NotificationHandler{
 		client:  c,
 		elastic: e,
@@ -58,29 +55,17 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			NextHash:      block.NextHash,
 		}
 
-		data, _ := json.Marshal(blockDto)
-		req := esapi.IndexRequest{
-			Index:      "block",
-			DocumentID: blockDto.Hash,
-			Body:       strings.NewReader(string(data)),
-			Refresh:    "true",
-		}
-		res, err := req.Do(context.Background(), handler.elastic)
+		ctx := context.Background()
+		_, err = handler.elastic.Index().
+			Index("btc-block").
+			Type("block").
+			Id(blockDto.Hash).
+			BodyJson(blockDto).
+			Do(ctx)
 		if err != nil {
-			log.Fatalf("Error getting response: %s", err)
+			log.Print(err)
 		}
-		defer res.Body.Close()
-
-		if res.IsError() {
-			log.Printf("[%s] Error indexing document ID=%d", res.Status(), blockDto.Hash)
-		} else {
-			var r map[string]interface{}
-			if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-				log.Printf("Error parsing the response body: %s", err)
-			} else {
-				log.Printf("[%s] block %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
-			}
-		}
+		// fmt.Printf("Indexed block %s to index %s, type %s\n", put1.Id, put1.Index, put1.Type)
 
 		// Map tx to dto
 		var transactionList []models.TransactionDto
@@ -129,29 +114,16 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 
 		// TODO : Insert bulk
 		for _, transaction := range transactionList {
-			data, _ := json.Marshal(transaction)
-			req := esapi.IndexRequest{
-				Index:      "transaction",
-				DocumentID: transaction.Hash,
-				Body:       strings.NewReader(string(data)),
-				Refresh:    "true",
-			}
-			res, err := req.Do(context.Background(), handler.elastic)
+			_, err := handler.elastic.Index().
+				Index("btc-transaction").
+				Type("transaction").
+				Id(transaction.Hash).
+				BodyJson(transaction).
+				Do(ctx)
 			if err != nil {
-				log.Fatalf("Error getting response: %s", err)
+				log.Print(err)
 			}
-			defer res.Body.Close()
-
-			if res.IsError() {
-				log.Printf("[%s] Error indexing document ID=%d", res.Status(), transaction.Hash)
-			} else {
-				var r map[string]interface{}
-				if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-					log.Printf("Error parsing the response body: %s", err)
-				} else {
-					log.Printf("[%s] transaction %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
-				}
-			}
+			// fmt.Printf("Indexed transaciton %s to index %s, type %s\n", put1.Id, put1.Index, put1.Type)
 		}
 	}
 

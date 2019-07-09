@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -13,7 +15,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/elastic/go-elasticsearch"
+	"github.com/olivere/elastic/v7"
 )
 
 func main() {
@@ -91,18 +93,20 @@ func main() {
 	}
 
 	// Elastic client
-	cfg := elasticsearch.Config{
-		Addresses: []string{
-			"http://localhost:9200",
-		},
-	}
-	es, err := elasticsearch.NewClient(cfg)
+	esClient, err := elastic.NewClient(elastic.SetURL("http://localhost:9200"))
 	if err != nil {
 		log.Fatalf("Error creating the client: %s", err)
 	}
 
+	ctx := context.Background()
+	info, code, err := esClient.Ping("http://localhost:9200").Do(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Elasticsearch returned with code %d and version %s\n", code, info.Version.Number)
+
 	// Notification handler
-	handler := NewNotificationHandler(client, es)
+	handler := NewNotificationHandler(client, esClient)
 	go handler.ConsumeBlocks(blockChannel)
 	go handler.ConsumeTx(txChannel)
 	go handler.ConsumeRelevantTxHex(txHexChannel)
