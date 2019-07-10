@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
 	"github.com/farukterzioglu/btc-scraper/services"
 	"github.com/gorilla/mux"
 )
@@ -60,32 +59,22 @@ func (routes *BtcDbRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	blockIDStr := params["BlockID"]
 
-	block, err := routes.elasticService.GetBlock("btc", blockIDStr)
+	block, err := routes.elasticService.GetBlock(blockIDStr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
-	blockDto := dtos.BlockDto{
-		Hash:          block.Hash,
-		Height:        block.Height,
-		Time:          block.Time,
-		Confirmations: block.Confirmations,
-		Tx:            block.Tx,
-		NextHash:      block.NextHash,
-		PreviousHash:  block.PreviousHash,
-	}
-
 	w.Header().Add("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(blockDto); err != nil {
+	if err := json.NewEncoder(w).Encode(block); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 	}
 }
 
 func (routes *BtcDbRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
-	blockList, err := routes.elasticService.GetBlocks("btc", 10)
+	blockList, err := routes.elasticService.GetBlocks(10)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -104,7 +93,7 @@ func (routes *BtcDbRoutes) getTransaction(w http.ResponseWriter, r *http.Request
 	params := mux.Vars(r)
 	txHashStr := params["TxHash"]
 
-	tx, err := routes.elasticService.GetBlock("btc", txHashStr)
+	tx, err := routes.elasticService.GetTransaction(txHashStr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

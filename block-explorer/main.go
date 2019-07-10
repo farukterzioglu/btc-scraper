@@ -38,12 +38,12 @@ import (
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
-	"github.com/elastic/go-elasticsearch"
 	"github.com/farukterzioglu/btc-scraper/block-explorer/api"
 	_ "github.com/farukterzioglu/btc-scraper/block-explorer/swagger" // Required for Swagger to explore models
 	"github.com/farukterzioglu/btc-scraper/services"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
+	"github.com/olivere/elastic/v7"
 )
 
 var (
@@ -62,8 +62,16 @@ func main() {
 	flag.Parse()
 	logger.Log("Application port", *portNumber)
 
-	rpcCLient := initRpcClient()
-	elasticService := initElasticService()
+	rpcCLient, err := initRpcClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	elasticService, err := initElasticService("btc", "http://localhost:9200")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	router := initRouter(rpcCLient, elasticService)
 
 	// Host Swagger UI
@@ -74,12 +82,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *portNumber), router))
 }
 
-func initRpcClient() *rpcclient.Client {
+func initRpcClient() (*rpcclient.Client, error) {
 	btcdHomeDir := btcutil.AppDataDir("btcd", false)
 	certs, err := ioutil.ReadFile(filepath.Join(btcdHomeDir, "rpc.cert"))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
 	connCfg := &rpcclient.ConnConfig{
 		Host:         "localhost:18556",
 		Endpoint:     "ws",
@@ -89,27 +98,19 @@ func initRpcClient() *rpcclient.Client {
 	}
 	client, err := rpcclient.New(connCfg, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return client
+	return client, nil
 }
 
-func initElasticService() *services.ElasticService {
-	// TODO : get url from params
-	// TODO : better exception handling
-
-	cfg := elasticsearch.Config{
-		Addresses: []string{
-			"http://localhost:9200",
-		},
-	}
-	es, err := elasticsearch.NewClient(cfg)
+func initElasticService(cryptoCode string, url string) (*services.ElasticService, error) {
+	esClient, err := elastic.NewClient(elastic.SetURL(url))
 	if err != nil {
-		log.Fatalf("Error creating the client: %s", err)
+		return nil, err
 	}
 
-	return services.NewElasticService(es)
+	return services.NewElasticService(cryptoCode, esClient), nil
 }
 
 func initRouter(client *rpcclient.Client, elasticService *services.ElasticService) (router *mux.Router) {

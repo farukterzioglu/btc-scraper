@@ -6,7 +6,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
+	"github.com/farukterzioglu/btc-scraper/models"
 	"github.com/gorilla/mux"
 )
 
@@ -75,7 +75,7 @@ func (routes *BtcRoutes) getBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockDto := dtos.BlockDto{
+	blockDto := models.BlockDto{
 		Hash:          block.Hash,
 		Height:        block.Height,
 		Time:          block.Time,
@@ -105,7 +105,7 @@ func (routes *BtcRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
 		blockListLenght = int(blockCount)
 	}
 
-	blockList := make([]dtos.BlockDto, blockListLenght, 10)
+	blockList := make([]models.BlockDto, blockListLenght, 10)
 
 	for i := 0; i < blockListLenght; i++ {
 		height := blockCount - int64(i)
@@ -116,7 +116,7 @@ func (routes *BtcRoutes) getBlocks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		blockList[i] = dtos.BlockDto{
+		blockList[i] = models.BlockDto{
 			Hash:   blockHash.String(),
 			Height: height,
 		}

@@ -1,7 +1,7 @@
 package swagger
 
 import (
-	"github.com/farukterzioglu/btc-scraper/block-explorer/dtos"
+	"github.com/farukterzioglu/btc-scraper/models"
 )
 
 // Request containing block id
@@ -19,7 +19,7 @@ type swaggGetBlockReq struct {
 type swaggBlocksResp struct {
 	// Array of block models
 	// in:body
-	Body []dtos.BlockDto
+	Body []models.BlockDto
 }
 
 // HTTP status code 200 and a block model in data
@@ -27,7 +27,7 @@ type swaggBlocksResp struct {
 type swaggBlockResp struct {
 	// A block model
 	// in:body
-	Body dtos.BlockDto
+	Body models.BlockDto
 }
 
 // Request containing transaction hash
@@ -45,5 +45,5 @@ type swaggGetTxReq struct {
 type swaggTransactionResp struct {
 	// A transaction model
 	// in:body
-	Body dtos.TransactionDto
+	Body models.TransactionDto
 }

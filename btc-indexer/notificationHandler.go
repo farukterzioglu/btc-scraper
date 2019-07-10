@@ -43,23 +43,6 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			continue
 		}
 
-		// log.Printf("Block details: %+v", block)
-
-		blockDto := models.BlockDto{
-			Hash:          block.Hash,
-			Confirmations: block.Confirmations,
-			Height:        block.Height,
-			Time:          block.Time,
-			PreviousHash:  block.PreviousHash,
-			NextHash:      block.NextHash,
-		}
-
-		err = handler.service.InsertBlock(blockDto)
-		if err != nil {
-			log.Print(err)
-		}
-		// fmt.Printf("Indexed block %s to index %s, type %s\n", put1.Id, put1.Index, put1.Type)
-
 		// Map tx to dto
 		var transactionList []models.TransactionDto
 		linq.From(block.RawTx).WhereT(func(tx btcjson.TxRawResult) bool {
@@ -115,9 +98,28 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			handler.service.InsertTx(transaction)
 			// fmt.Printf("Indexed transaciton %s to index %s, type %s\n", put1.Id, put1.Index, put1.Type)
 		}
-	}
 
-	return handler
+		// Insert block (w/ tx hashes)
+		var txHashes []string
+		linq.From(transactionList).SelectT(func(tx models.TransactionDto) string {
+			return tx.Hash
+		}).ToSlice(&txHashes)
+
+		blockDto := models.BlockDto{
+			Hash:          block.Hash,
+			Confirmations: block.Confirmations,
+			Height:        block.Height,
+			Time:          block.Time,
+			PreviousHash:  block.PreviousHash,
+			NextHash:      block.NextHash,
+			Tx:            txHashes,
+		}
+
+		err = handler.service.InsertBlock(blockDto)
+		if err != nil {
+			log.Print(err)
+		}
+	}
 }
 
 func (handler *NotificationHandler) ConsumeTx(chn <-chan TxNotification) *NotificationHandler {
