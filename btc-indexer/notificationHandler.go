@@ -1,25 +1,24 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/farukterzioglu/btc-scraper/models"
-	"github.com/olivere/elastic/v7"
+	"github.com/farukterzioglu/btc-scraper/services"
 )
 
 type NotificationHandler struct {
 	client  *rpcclient.Client
-	elastic *elastic.Client
+	service *services.ElasticService
 }
 
-func NewNotificationHandler(c *rpcclient.Client, e *elastic.Client) *NotificationHandler {
+func NewNotificationHandler(c *rpcclient.Client, s *services.ElasticService) *NotificationHandler {
 	return &NotificationHandler{
 		client:  c,
-		elastic: e,
+		service: s,
 	}
 }
 
@@ -55,13 +54,7 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			NextHash:      block.NextHash,
 		}
 
-		ctx := context.Background()
-		_, err = handler.elastic.Index().
-			Index("btc-block").
-			Type("block").
-			Id(blockDto.Hash).
-			BodyJson(blockDto).
-			Do(ctx)
+		err = handler.service.InsertBlock(blockDto)
 		if err != nil {
 			log.Print(err)
 		}
@@ -69,7 +62,12 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 
 		// Map tx to dto
 		var transactionList []models.TransactionDto
-		linq.From(block.RawTx).SelectT(func(tx btcjson.TxRawResult) models.TransactionDto {
+		linq.From(block.RawTx).WhereT(func(tx btcjson.TxRawResult) bool {
+			// Don't index coinbase tx
+			return tx.Vin[0].Coinbase == ""
+		}).SelectT(func(tx btcjson.TxRawResult) models.TransactionDto {
+			log.Printf("%+v\n", tx)
+
 			var vinList []models.Vin
 
 			linq.From(tx.Vin).SelectT(func(vin btcjson.Vin) models.Vin {
@@ -114,15 +112,7 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 
 		// TODO : Insert bulk
 		for _, transaction := range transactionList {
-			_, err := handler.elastic.Index().
-				Index("btc-transaction").
-				Type("transaction").
-				Id(transaction.Hash).
-				BodyJson(transaction).
-				Do(ctx)
-			if err != nil {
-				log.Print(err)
-			}
+			handler.service.InsertTx(transaction)
 			// fmt.Printf("Indexed transaciton %s to index %s, type %s\n", put1.Id, put1.Index, put1.Type)
 		}
 	}

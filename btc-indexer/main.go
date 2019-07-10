@@ -15,6 +15,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/farukterzioglu/btc-scraper/services"
 	"github.com/olivere/elastic/v7"
 )
 
@@ -105,8 +106,10 @@ func main() {
 	}
 	fmt.Printf("Elasticsearch returned with code %d and version %s\n", code, info.Version.Number)
 
+	elasticService := services.NewElasticService("btc", esClient)
+
 	// Notification handler
-	handler := NewNotificationHandler(client, esClient)
+	handler := NewNotificationHandler(client, elasticService)
 	go handler.ConsumeBlocks(blockChannel)
 	go handler.ConsumeTx(txChannel)
 	go handler.ConsumeRelevantTxHex(txHexChannel)
