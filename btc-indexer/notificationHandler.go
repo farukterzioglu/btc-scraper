@@ -22,7 +22,7 @@ func NewNotificationHandler(c *rpcclient.Client, s *services.ElasticService) *No
 	}
 }
 
-func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) *NotificationHandler {
+func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) {
 	log.Println("Started to consume blocks...")
 
 	for {
@@ -49,8 +49,6 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 			// Don't index coinbase tx
 			return tx.Vin[0].Coinbase == ""
 		}).SelectT(func(tx btcjson.TxRawResult) models.TransactionDto {
-			log.Printf("%+v\n", tx)
-
 			var vinList []models.Vin
 
 			linq.From(tx.Vin).SelectT(func(vin btcjson.Vin) models.Vin {
@@ -122,7 +120,7 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 	}
 }
 
-func (handler *NotificationHandler) ConsumeTx(chn <-chan TxNotification) *NotificationHandler {
+func (handler *NotificationHandler) ConsumeTx(chn <-chan TxNotification) {
 	log.Println("Started to consume transactions...")
 
 	for {
@@ -135,11 +133,9 @@ func (handler *NotificationHandler) ConsumeTx(chn <-chan TxNotification) *Notifi
 			log.Printf("   Output amount: %f", vout.Value)
 		}
 	}
-
-	return handler
 }
 
-func (handler *NotificationHandler) ConsumeRelevantTxHex(chn <-chan string) *NotificationHandler {
+func (handler *NotificationHandler) ConsumeRelevantTxHex(chn <-chan string) {
 	log.Println("Started to consume relevant transactions...")
 
 	for {
@@ -148,6 +144,4 @@ func (handler *NotificationHandler) ConsumeRelevantTxHex(chn <-chan string) *Not
 		log.Printf("Relevant tx accepted")
 		log.Printf("   %s", hex)
 	}
-
-	return handler
 }

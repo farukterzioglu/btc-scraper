@@ -1,0 +1,21 @@
+###
+PUT http://localhost:9200/settings/_doc/btc-indexer
+content-type: application/json
+
+{
+    "settingType": "btc-indexer",
+    "lastBlock" : "0"
+}
+
+###
+GET http://localhost:9200/settings/_search
+
+###
+GET http://localhost:9200/settings/_search?q=settingType:btc-indexer
+content-type: application/json
+
+###
+GET http://localhost:9200/btc-block/_search?size=1000
+content-type: application/json
+
+# TODO : Add for updateing settings 
