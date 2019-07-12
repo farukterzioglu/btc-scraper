@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"time"
 
 	"encoding/hex"
 	"encoding/json"
@@ -22,9 +23,9 @@ import (
 )
 
 func main() {
-	blockChannel := make(chan BlockNotification)
-	txChannel := make(chan TxNotification)
-	txHexChannel := make(chan string)
+	blockChannel := make(chan BlockNotification, 10)
+	txChannel := make(chan TxNotification, 10)
+	txHexChannel := make(chan string, 5)
 
 	ntfnHandlers := rpcclient.NotificationHandlers{
 		OnFilteredBlockConnected: func(blockHeight int32, header *wire.BlockHeader, txList []*btcutil.Tx) {
@@ -38,7 +39,7 @@ func main() {
 			case blockChannel <- notification:
 				break
 			default:
-				log.Println("couldn't sent the block. no consumer.")
+				log.Printf("couldn't sent the block %d. no consumer.\n", blockHeight)
 			}
 		},
 		OnFilteredBlockDisconnected: func(int32, *wire.BlockHeader) {},
@@ -101,7 +102,11 @@ func main() {
 
 	// Notification handler
 	handler := NewNotificationHandler(client, elasticService)
-	go handler.ConsumeBlocks(blockChannel)
+
+	processedHeightChn := make(chan int64)
+	go updateDbForLastProcessed(esClient, processedHeightChn)
+
+	go handler.ConsumeBlocks(blockChannel, processedHeightChn)
 	go handler.ConsumeTx(txChannel)
 	go handler.ConsumeRelevantTxHex(txHexChannel)
 
@@ -142,7 +147,7 @@ func ConsumeOldBlocks(
 	if err != nil {
 		return err
 	}
-	log.Printf("best block: %d, last processed block: %d\n", bestBlockN, lastProcessedBlock)
+	log.Printf("Best block: %d, last processed block: %d\n", bestBlockN, lastProcessedBlock)
 
 	for i := lastProcessedBlock + 1; i <= bestBlockN; i++ {
 		log.Printf("processing block %d...\n", i)
@@ -176,7 +181,7 @@ func ConsumeOldBlocks(
 			}
 		}
 	}
-	err = updateSettings(esClient, bestBlockN)
+	err = updateSettings(esClient, int64(bestBlockN))
 	if err != nil {
 		log.Print(err)
 	}
@@ -187,14 +192,58 @@ type settings struct {
 	LastBlock int32 `json:"lastBlock"`
 }
 
+func updateDbForLastProcessed(esClient *elastic.Client, chn <-chan int64) {
+	var lastProcessedHeight int64
+	var lastSavedHeight int64
+
+	for {
+		select {
+		case processedHeight := <-chn:
+			log.Printf("Last processed height : %d\n", processedHeight)
+
+			if processedHeight > lastProcessedHeight {
+				lastProcessedHeight = processedHeight
+			}
+			break
+		case <-time.After(5 * time.Second):
+			if lastProcessedHeight != lastSavedHeight {
+				log.Printf("Updated db. Last processed : %d\n", lastProcessedHeight)
+				updateSettings(esClient, lastProcessedHeight)
+				lastSavedHeight = lastProcessedHeight
+			}
+		}
+
+	}
+}
+
 func getSettings(esClient *elastic.Client) (settings, error) {
 	ctx := context.Background()
+
+	exists, err := esClient.IndexExists("settings").Do(ctx)
+	if err != nil {
+		return settings{}, err
+	}
+	if !exists {
+		set := settings{
+			LastBlock: 0,
+		}
+
+		ctx := context.Background()
+		_, err := esClient.Index().
+			Index("settings").
+			Type("_doc").
+			Id("btc-indexer").
+			BodyJson(set).
+			Do(ctx)
+		if err != nil {
+			return settings{}, err
+		}
+	}
 
 	searchResult, err := esClient.Get().
 		Index("settings").
 		Type("_doc").
 		Id("btc-indexer").
-		// Pretty(true).
 		Do(ctx)
 	if err != nil {
 		return settings{}, err
@@ -218,7 +267,7 @@ func getSettings(esClient *elastic.Client) (settings, error) {
 	return s, nil
 }
 
-func updateSettings(esClient *elastic.Client, lastBlock int32) error {
+func updateSettings(esClient *elastic.Client, lastBlock int64) error {
 	_, err := esClient.Update().Index("settings").Id("btc-indexer").
 		Script(elastic.NewScriptInline("ctx._source.lastBlock = params.lastBlock").Lang("painless").Param("lastBlock", lastBlock)).
 		Upsert(map[string]interface{}{"lastBlock": 0}).

@@ -22,7 +22,7 @@ func NewNotificationHandler(c *rpcclient.Client, s *services.ElasticService) *No
 	}
 }
 
-func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) {
+func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification, processedHeight chan int64) {
 	log.Println("Started to consume blocks...")
 
 	for {
@@ -116,6 +116,13 @@ func (handler *NotificationHandler) ConsumeBlocks(chn <-chan BlockNotification) 
 		err = handler.service.InsertBlock(blockDto)
 		if err != nil {
 			log.Print(err)
+		}
+
+		select {
+		case processedHeight <- block.Height:
+			break
+		default:
+			log.Printf("couldn't sent the block height %d. no consumer.\n", block.Height)
 		}
 	}
 }
