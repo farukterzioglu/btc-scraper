@@ -10,7 +10,8 @@
 
 "rest-client.certificates": {
   "127.0.0.1:18556": {
-      "cert": "/rpc.cert"
+      "cert": "/rpc.cert",
+      "key": "/rpc.key"
   }
 }
 
