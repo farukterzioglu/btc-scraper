@@ -1,3 +1,5 @@
+Related article (tr) : [Bitcoin İle Konuşan Uygulamalar](https://link.medium.com/pUHIIt0poY)  
+  
 Follow the instruction from : [Bitcoin'i Kodlamak (Coding Bitcoin, Turkish)](https://medium.com/@farukterzioglu/bitcoini-kodlamak-1-golang-ile-5e7833c0dc19) (or from [setup_notes.md](setup_notes.md))
   
 
